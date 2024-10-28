@@ -1,17 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Tutorial7.cpp" />
+    <ClCompile Include="tutorial8.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{63bfb361-2d0a-404f-9fd9-9e83dbad3eb6}</UniqueIdentifier>
+      <UniqueIdentifier>{800b31a4-d940-4896-88ab-53245649794b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
 </Project>
