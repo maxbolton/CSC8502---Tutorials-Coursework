@@ -25,7 +25,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
 		const string* filename = nullptr;
 		matEntry->GetEntry("diffuse", &filename);
-		string path = TEXTUREDIR + *filename;
+		string path =TEXTUREDIR + *filename;
 		GLuint texID = SOIL_load_OGL_texture(path.c_str(), SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);
 		matTextures.emplace_back(texID);
 	}
