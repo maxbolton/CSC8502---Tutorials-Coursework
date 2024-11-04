@@ -1,30 +1,28 @@
 #pragma once
 
 #include "../nclgl/OGLRenderer.h"
+#include "../nclgl/Camera.h"
+#include "../nclgl/Mesh.h"
+#include "../nclgl/MeshAnimation.h"
+#include "../nclgl/MeshMaterial.h"
+#include <vector>
 
-class Camera;
-class Mesh;
-class MeshAnimation;
-class MeshMaterial;
-
-class Renderer : public OGLRenderer
-{
+class Renderer : public OGLRenderer {
 public:
-	Renderer(Window& parent);
-	~Renderer(void);
+    Renderer(Window& parent);
+    ~Renderer();
 
-	void RenderScene() override;
-	void UpdateScene(float dt);
+    void RenderScene() override;
+    void UpdateScene(float dt) override;
 
 protected:
-	Camera* camera;
-	Mesh* mesh;
-	Shader* shader;
-	MeshAnimation* anim;
-	MeshMaterial* material;
-	vector<GLuint> matTextures;
+    Camera* camera;
+    Mesh* mesh;
+    Shader* shader;
+    MeshAnimation* anim;
+    MeshMaterial* material;
+    std::vector<GLuint> matTextures;
 
-	int currentFrame;
-	float frameTime;
+    int currentFrame;
+    float frameTime;
 };
-
