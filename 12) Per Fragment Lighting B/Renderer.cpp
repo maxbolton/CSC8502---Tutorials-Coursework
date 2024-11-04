@@ -16,14 +16,16 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	);
 
     //shader = new Shader("PerPixelVertex.glsl", "PerPixelFragment.glsl");
+    shader = new Shader("bumpvertex.glsl", "bumpfragment.glsl");
+
 
     if (!shader->LoadSuccess() || !texture || !bumpmap) {
         return;
     }
+
+
     SetTextureRepeating(texture, true);
 	SetTextureRepeating(bumpmap, true);
-
-    shader = new Shader("BumpVertex.glsl", "BumpFragment.glsl");
 
     Vector3 heightmapSize = heightMap->GetHeightmapSize();
 
