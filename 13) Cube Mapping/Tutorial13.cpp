@@ -1,6 +1,13 @@
 #include "../nclgl/window.h"
 #include "Renderer.h"
 
+
+// For NVIDIA GPU
+extern "C" {
+	_declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
+
+
 int main() {
 	Window w("Cube Mapping!", 1280, 720,false);
 	if(!w.HasInitialised()) {
