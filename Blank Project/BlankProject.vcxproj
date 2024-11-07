@@ -138,9 +138,11 @@
   <ItemGroup>
     <ClCompile Include="BlankProject.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="Track.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Track.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
