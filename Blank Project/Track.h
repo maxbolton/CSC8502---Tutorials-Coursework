@@ -1,9 +1,10 @@
 #pragma once
 #include <vector>
 #include "../nclgl/Vector3.h"
+#include "../nclgl/window.h"
 
-
-
+class Light;
+class Camera;
 
 // templated type for object that will be on the track
 template <class T>
@@ -15,9 +16,15 @@ protected:
 	Vector3* endPos;
 
 	std::vector<Vector3> trackPoints;
-	int numPoints;
 
-	int duration;
+	int numPoints;
+	int currentPoint;
+
+	float duration;
+	float elapsedTime;
+
+	float progress;
+	bool looping;
 	
 	T* object;
 
@@ -27,9 +34,13 @@ public:
 		startPos = start;
 		endPos = end;
 		object = obj;
-		numPoints = 0;
-		duration = 3;
-		populateTrack();
+		numPoints = 2;
+		currentPoint = 0;
+		duration = 3.0f;
+		elapsedTime = 0.0f;
+		progress = 0.0f;
+		looping = false;
+		initTrack();
 	}
 
 	~Track() {
@@ -38,39 +49,156 @@ public:
 	}
 
 	void addPoint(Vector3 point) {
+		//remove old end point
+		trackPoints.pop_back();
+		//add new point
 		trackPoints.push_back(point);
+		//add end point back
+		trackPoints.push_back(*endPos);
 		numPoints++;
 	}
 
-	Vector3 getPoint(int i) {
-		return trackPoints[i];
+	Vector3 getPoint(int i) { return trackPoints[i];}
+
+	Vector3 getStart() { return *startPos; }
+
+	Vector3 getEnd() { return *endPos;  }
+
+	int getNumPoints() { return numPoints;  }
+
+	T* getObject() { return object; }
+
+	int getCurrentPoint() { return currentPoint; }
+
+	void setCurrentPoint(int i) { currentPoint = i; }
+
+	vector<Vector3> getTrackPoints() { return trackPoints; }
+
+	void initTrack() {
+		// add the start and end points
+		trackPoints.push_back(*startPos);
+		trackPoints.push_back(*endPos);
 	}
 
-	Vector3 getStart() {
-		return *startPos;
+	bool isComplete() {return progress >= 1.0f;}
+
+	bool isLooping() {return looping;}
+
+	void toggleLooping() {looping = !looping;}
+
+	void resetTrack() {
+		object->SetPosition(*startPos);
+		elapsedTime = 0.0f;
+		progress = 0.0f;
+		currentPoint = 0;
 	}
 
-	Vector3 getEnd() {
-		return *endPos;
+
+	//traverse track and update object position
+	void Track<T>::traverseTrack(float dt) {
+		if (progress >= 1.0f) {
+			currentPoint++;
+			progress = 0.0f;
+			elapsedTime = 0.0f;
+			progress = 0.0f;
+		}
+		if (numPoints == 0 || numPoints-1 == currentPoint) {
+			return;
+		}
+		
+
+		// Update elapsed time
+		elapsedTime += (dt);
+
+		// Calculate progress as a percentage (from 0 to 1)
+		progress = elapsedTime / duration;
+		progress = std::min(progress, 1.0f); // Clamp to 1.0 to avoid overshooting
+
+		// Interpolate between start and end positions
+		Vector3 newPosition = (getTrackPoints()[getCurrentPoint()]) * (1.0f - progress) + (getTrackPoints()[getCurrentPoint()+1]) * progress;
+		std::cout << "new position: " << newPosition << "\n";
+
+		// Update object position
+		object->SetPosition(newPosition);
+	}
+};
+
+// polymorphic class 'DirectionalTrack' that inherits from 'Track'
+template <class T>
+class DirectionalTrack : public Track<T>
+{
+protected:
+
+	Vector3 startTarget;
+	Vector3 endTarget;
+
+	vector<Vector3> targets;
+
+	int numTargets;
+	int currentTarget;
+
+public:
+	// Constructor for DirectionalTrack, inherits and initializes Track constructor
+	DirectionalTrack(Vector3* start, Vector3* end, Vector3 startTarget, Vector3 endTarget, T* obj):Track<T>(start, end, obj){
+		startTarget = startTarget;
+		endTarget = endTarget;
+		numTargets = 0;
+		currentTarget = 0;
 	}
 
-	int getNumPoints() {
-		return numPoints;
+	~DirectionalTrack() {
+		delete startTarget;
+		delete endTarget;
 	}
 
-	T* getObject() {
-		return object;
+	void initTargets() {
+		targets.push_back(*startTarget);
+		targets.push_back(*endTarget);
+		numTargets = 2;
 	}
 
-	void populateTrack() {
-		// populate the track with points
-		// for now just add the start and end points
-		addPoint(*startPos);
-		addPoint(*endPos);
+	void addTarget(Vector3 target) {
+		targets.pop_back();
+		targets.push_back(target);
+		targets.push_back(*endTarget);
+		numTargets++;
 	}
 
-	void traverseTrack();
-	void occilateObject();
+	void faceTarget() {
+		// Calculate the intended direction from the object to the target
+		Vector3 targetDirection = (startTarget - object->GetPosition());
+		targetDirection.Normalise();
+
+		// Get the object's current direction
+		Vector3 currentDirection = object->getDirection(); // Assuming this method exists
+		currentDirection.Normalise();
+
+		// Define a reference 'up' vector, for example, Y-up
+		Vector3 upVector(0, 1, 0);
+
+		// Calculate the cross product manually
+		Vector3 crossProduct(
+			currentDirection.y * targetDirection.z - currentDirection.z * targetDirection.y,
+			currentDirection.z * targetDirection.x - currentDirection.x * targetDirection.z,
+			currentDirection.x * targetDirection.y - currentDirection.y * targetDirection.x
+		);
+
+		// Calculate the dot product of crossProduct and upVector manually
+		float dotResult = crossProduct.x * upVector.x + crossProduct.y * upVector.y + crossProduct.z * upVector.z;
+
+		// Adjust the target direction based on the winding order
+		if (dotResult < 0) {
+			// Reverse targetDirection if the winding is incorrect
+			targetDirection = -targetDirection;
+		}
+
+		// Set the object's direction
+		object->setDirection(targetDirection);
+	}
+
+
+
+
 
 };
 

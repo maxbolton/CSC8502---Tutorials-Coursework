@@ -31,6 +31,10 @@ class Camera
 		float GetPitch() const { return pitch; };
 		void SetPitch(float p) { pitch = p; };
 
+		void setDirection(Vector3 directionNorm);
+		Vector3 getDirection();
+
+
 
 	protected:
 		float yaw;

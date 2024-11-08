@@ -18,21 +18,23 @@ int main() {
     w.LockMouseToWindow(true);
     w.ShowOSPointer(false);
 
+
     while (w.UpdateWindow() &&
         !Window::GetKeyboard()->KeyDown(KEYBOARD_ESCAPE)) {
+        
         renderer.UpdateScene(w.GetTimer()->GetTimeDeltaSeconds());
         renderer.RenderScene();
         renderer.SwapBuffers();
 
-
-		if (Window::GetKeyboard()->KeyDown(KEYBOARD_1)) {
-            renderer.lightPositive();
+		if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_1)) {
+			renderer.lightPositive();
 		}
-        if (Window::GetKeyboard()->KeyDown(KEYBOARD_2)) {
-            renderer.lightNegative();
+        if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_2)) {
+        renderer.lightNegative();
         }
-
-		cout << "light pos:" << renderer.getLightPos() << "\n";
+        if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_3)) {
+			renderer.idkBruh();
+        }
     }
     return 0;
 }

@@ -23,6 +23,7 @@ public:
 
 	void lightPositive();
 	void lightNegative();
+	void idkBruh();
 
 	Vector3 getLightPos() { return Sun->GetPosition(); }
 
@@ -31,6 +32,10 @@ protected:
 	void DrawWater();
 	void DrawSkybox();
 	void DrawTower();
+
+	void DrawSunIndicator();
+	Mesh* sunCube;
+	GLuint redTex;
 
 	Mesh* tower;
 	GLuint towerTex;
@@ -45,7 +50,10 @@ protected:
 	Mesh* quad;
 
 	Light* Sun;
+	Track<Light>* sunTrack;
+
 	Camera* camera;
+	DirectionalTrack<Camera>* cameraTrack;
 
 	GLuint cubeMap;
 	GLuint waterTex;
@@ -55,7 +63,7 @@ protected:
 	float waterRotate;
 	float waterCycle;
 
-	Track<Light>* sunTrack;
+
 
 };
 

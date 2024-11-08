@@ -8,6 +8,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	quad = Mesh::GenerateQuad();
 	tower = Mesh::LoadFromMeshFile("hatka_local_.msh");
 
+	sunCube = Mesh::LoadFromMeshFile("cube.msh");
 
 	towerTex = SOIL_load_OGL_texture(TEXTUREDIR"hatka_local_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 	towerBump = SOIL_load_OGL_texture(TEXTUREDIR"hatka_normal_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
@@ -24,6 +25,13 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 		TEXTUREDIR"rusted_south.jpg", TEXTUREDIR"rusted_north.jpg",
 		SOIL_LOAD_RGB,
 		SOIL_CREATE_NEW_ID, 0);
+
+	redTex = SOIL_load_OGL_texture(TEXTUREDIR"red.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	if (!redTex) {
+		return;
+	}
+	SetTextureRepeating(redTex, true);
+
 
 	if (!cubeMap || !waterTex || !earthTex || !earthBump || !towerTex) {
 		return;
@@ -48,18 +56,24 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
 	Vector3 heightMapSize = heightMap->GetHeightmapSize();
 
-	camera = new Camera(-45.0f, 0.0f, heightMapSize * Vector3(0.5f, 5.0f, 0.5f));
+	
 
 	Sun = new Light(heightMapSize * Vector3(1.0f, 2.0f, 1.0f), Vector4(2, 2, 2, 1), heightMapSize.x);
 
 	projMatrix = Matrix4::Perspective(1.0f, 15000.0f, (float)width / (float)height, 45.0f);
-
 
 	Vector3* start = new Vector3(2032, 510, 139);
 	Vector3* end = new Vector3(2032, 510, 2039);
 
 
 	sunTrack = new Track<Light>(start, end, Sun);
+	sunTrack->addPoint(Vector3(1000, 1000, 1000));
+
+	camera = new Camera(-45.0f, 0.0f, heightMapSize * Vector3(0.5f, 5.0f, 0.5f));
+
+
+	cameraTrack = new DirectionalTrack<Camera>(new Vector3(0.5f, 5.0f, 0.5f), new Vector3(0.5f, 5.0f, 0.5f), Sun->GetPosition(), Sun->GetPosition(), camera);
+
 
 
 	glEnable(GL_DEPTH_TEST);
@@ -86,6 +100,10 @@ void Renderer::UpdateScene(float dt) {
 	viewMatrix = camera->BuildViewMatrix();
 	waterRotate += dt / 2.0f;
 	waterCycle += dt / 0.25f;
+	// if sunTrack is set to looping, update the track
+	if (sunTrack->isLooping()) {
+		sunTrack->traverseTrack(dt);
+	}
 }
 
 void Renderer::RenderScene() {
@@ -95,6 +113,7 @@ void Renderer::RenderScene() {
 	DrawHeightmap();
 	DrawWater();
 	DrawTower();
+	DrawSunIndicator();
 }
 
 void Renderer::DrawSkybox() {
@@ -195,11 +214,31 @@ void Renderer::DrawTower() {
 	tower->Draw();
 }
 
+void Renderer::DrawSunIndicator() {
+	BindShader(lightShader);
+
+	glUniform1i(glGetUniformLocation(lightShader->GetProgram(), "diffuseTex"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, redTex);
+
+	modelMatrix = Matrix4::Translation(Sun->GetPosition()) * Matrix4::Scale(Vector3(100, 100, 100));
+	textureMatrix.ToIdentity();
+
+	UpdateShaderMatrices();
+	sunCube->Draw();
+}
+
 
 void Renderer::lightPositive() {
-	Sun->SetPosition(sunTrack->getPoint(0));
+	sunTrack->resetTrack();
 }
 
 void Renderer::lightNegative() {
-	sunTrack->traverseTrack();
+	sunTrack->toggleLooping();
+}
+
+void Renderer::idkBruh() {
+
+	// face startTarget
+	cameraTrack->faceTarget();
 }
