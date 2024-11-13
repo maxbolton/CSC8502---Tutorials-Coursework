@@ -28,11 +28,16 @@ public:
 	Vector3 getLightPos() { return Sun->GetPosition(); }
 
 protected:
+
 	void DrawHeightmap();
 	void DrawWater();
 	void DrawSkybox();
 	void DrawTower();
+	void initSceneGraph();
+	void DrawNodes();
+	void DrawNode(SceneNode* n);
 
+	
 	void DrawSunIndicator();
 	Mesh* sunCube;
 	GLuint redTex;
@@ -45,6 +50,8 @@ protected:
 	Shader* reflectShader;
 	Shader* skyboxShader;
 	Shader* towerShader;
+	Shader* fogShader;
+	Shader* treeShader;
 
 	HeightMap* heightMap;
 	Mesh* quad;
@@ -60,10 +67,30 @@ protected:
 	GLuint earthTex;
 	GLuint earthBump;
 
+
 	float waterRotate;
 	float waterCycle;
 
 
+	Mesh* ppQuad;
+
+	Shader* sceneShader;
+	Shader* processShader;
+
+	GLuint bufferFBO;
+	GLuint processFBO;
+	GLuint bufferColourTex[2];
+	GLuint bufferDepthTex;
+
+	void PresentScene();
+	void DrawPostProcess();
+
+	SceneNode* root;
+	vector<SceneNode*> nodeList;
+	Mesh* treeMesh;
+	GLuint treeTex;
+
+	float deltaTime;
 
 };
 

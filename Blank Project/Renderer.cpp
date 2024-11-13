@@ -3,26 +3,41 @@
 #include "../nclgl/Camera.h"
 #include "../nclgl/HeightMap.h"
 #include "../nclgl/Shader.h"
+#include "../nclgl/SceneNode.h"
+#include "../nclgl/MeshMaterial.h"
+
+
+const int POST_PASSES = 10;
 
 Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
+
 	quad = Mesh::GenerateQuad();
 	tower = Mesh::LoadFromMeshFile("hatka_local_.msh");
-
 	sunCube = Mesh::LoadFromMeshFile("cube.msh");
+	ppQuad = Mesh::GenerateQuad();
+	treeMesh = Mesh::LoadFromMeshFile("SM_Pine_b_04.msh");
 
+
+
+	initSceneGraph();
+
+	deltaTime = 0;
+#pragma region Textures
 	towerTex = SOIL_load_OGL_texture(TEXTUREDIR"hatka_local_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 	towerBump = SOIL_load_OGL_texture(TEXTUREDIR"hatka_normal_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
-	heightMap = new HeightMap(TEXTUREDIR"generated_heightmap.png");
+	heightMap = new HeightMap(TEXTUREDIR"heightMapTerrain512.png");
 
 	waterTex = SOIL_load_OGL_texture(TEXTUREDIR"water.tga", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
-	earthTex = SOIL_load_OGL_texture(TEXTUREDIR"Barren Reds.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
-	earthBump = SOIL_load_OGL_texture(TEXTUREDIR"Barren RedsDOT3.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	earthTex = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_COLOR.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	earthBump = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_NRM.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+
+	treeTex = SOIL_load_OGL_texture(TEXTUREDIR"hatka_local_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
 	cubeMap = SOIL_load_OGL_cubemap(
-		TEXTUREDIR"rusted_west.jpg", TEXTUREDIR"rusted_east.jpg",
-		TEXTUREDIR"rusted_up.jpg", TEXTUREDIR"rusted_down.jpg",
-		TEXTUREDIR"rusted_south.jpg", TEXTUREDIR"rusted_north.jpg",
+		TEXTUREDIR"sh_rt.png", TEXTUREDIR"sh_lf.png",
+		TEXTUREDIR"sh_up.png", TEXTUREDIR"sh_dn.png",
+		TEXTUREDIR"sh_bk.png", TEXTUREDIR"sh_ft.png",
 		SOIL_LOAD_RGB,
 		SOIL_CREATE_NEW_ID, 0);
 
@@ -41,43 +56,82 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	SetTextureRepeating(waterTex, true);
 	SetTextureRepeating(earthTex, true);
 	SetTextureRepeating(earthBump, true);
+#pragma endregion
 
-
-
+#pragma region Shaders
 	towerShader = new Shader("bumpvertex.glsl", "bumpfragment.glsl");
 	reflectShader = new Shader("reflectVertex.glsl", "reflectFragment.glsl");
 	skyboxShader = new Shader("skyboxVertex.glsl", "skyboxFragment.glsl");
 	lightShader = new Shader("PerPixelVertex.glsl", "PerPixelFragment.glsl");
+	fogShader = new Shader("fogVert.glsl", "fogFrag.glsl");
+	treeShader = new Shader("SceneVertex.glsl", "SceneFragment.glsl");
+
+	sceneShader = new Shader("TexturedVertex.glsl", "TexturedFragment.glsl");
+	processShader = new Shader("TexturedVertex.glsl", "processfrag.glsl");
 
 
-	if (!reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !lightShader->LoadSuccess() || !towerShader->LoadSuccess()) {
+	if (!processShader->LoadSuccess() || !sceneShader->LoadSuccess() || !reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !lightShader->LoadSuccess() || !towerShader->LoadSuccess()) {
 		return;
 	}
+#pragma endregion
 
 	Vector3 heightMapSize = heightMap->GetHeightmapSize();
 
 	
 
-	Sun = new Light(heightMapSize * Vector3(1.0f, 2.0f, 1.0f), Vector4(2, 2, 2, 1), heightMapSize.x);
+	Sun = new Light(Vector3(7500, 510, 6500), Vector4(2, 2, 2, 1), heightMapSize.x);
 
 	projMatrix = Matrix4::Perspective(1.0f, 15000.0f, (float)width / (float)height, 45.0f);
 
-	Vector3* start = new Vector3(2032, 510, 139);
-	Vector3* end = new Vector3(2032, 510, 2039);
+	Vector3* start = &Sun->GetPosition();
+	Vector3* end = new Vector3(5500, 510, 5500);
 
 
 	sunTrack = new Track<Light>(start, end, Sun);
 	sunTrack->addPoint(Vector3(1000, 1000, 1000));
 
-	camera = new Camera(-45.0f, 0.0f, heightMapSize * Vector3(0.5f, 5.0f, 0.5f));
+	camera = new Camera(-45.0f, 0.0f, Vector3(7500.0f, 300.0f, 7500.0f));
 
 
 	cameraTrack = new DirectionalTrack<Camera>(new Vector3(0.5f, 5.0f, 0.5f), new Vector3(0.5f, 5.0f, 0.5f), Sun->GetPosition(), Sun->GetPosition(), camera);
 
+#pragma region pp stuff
+	glGenTextures(1, &bufferDepthTex);
+	glBindTexture(GL_TEXTURE_2D, bufferDepthTex);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+
+	for (int i = 0; i < 2; ++i) {
+		glGenTextures(1, &bufferColourTex[i]);
+		glBindTexture(GL_TEXTURE_2D, bufferColourTex[i]);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	}
+
+	glGenFramebuffers(1, &bufferFBO);
+	glGenFramebuffers(1, &processFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, bufferFBO);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bufferDepthTex, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, bufferDepthTex, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[0], 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || !bufferDepthTex || !bufferColourTex[0])
+		return;
+
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
+#pragma endregion
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	waterRotate = 0.0f;
@@ -93,27 +147,45 @@ Renderer::~Renderer(void) {
 	delete skyboxShader;
 	delete lightShader;
 	delete Sun;
+	delete ppQuad;
+
+	glDeleteTextures(2, bufferColourTex);
+	glDeleteTextures(1, &bufferDepthTex);
+	glDeleteFramebuffers(1, &bufferFBO);
+	glDeleteFramebuffers(1, &processFBO);
+
 }
 
 void Renderer::UpdateScene(float dt) {
 	camera->UpdateCamera(dt);
 	viewMatrix = camera->BuildViewMatrix();
-	waterRotate += dt / 2.0f;
-	waterCycle += dt / 0.25f;
+	waterRotate += dt * 0.2f;
+	waterCycle += dt * 0.125f;
 	// if sunTrack is set to looping, update the track
 	if (sunTrack->isLooping()) {
 		sunTrack->traverseTrack(dt);
 	}
+
+	deltaTime += dt;
 }
 
 void Renderer::RenderScene() {
+
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
 	DrawSkybox();
 	DrawHeightmap();
 	DrawWater();
 	DrawTower();
 	DrawSunIndicator();
+	//DrawNodes();
+
+
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 }
 
 void Renderer::DrawSkybox() {
@@ -155,6 +227,10 @@ void Renderer::DrawWater() {
 	glUniform1i(glGetUniformLocation(reflectShader->GetProgram(), "diffuseTex"), 0);
 	glUniform1i(glGetUniformLocation(reflectShader->GetProgram(), "cubeTex"), 2);
 
+
+	glUniform1f(glGetUniformLocation(reflectShader->GetProgram(), "time"), deltaTime);
+
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, waterTex);
 
@@ -163,8 +239,8 @@ void Renderer::DrawWater() {
 
 	Vector3 hSize = heightMap->GetHeightmapSize();
 
-	modelMatrix = Matrix4::Translation(hSize * 0.5f) *
-		Matrix4::Scale(hSize * 0.5f) *
+	modelMatrix = Matrix4::Translation(Vector3(5500, 210, 6000)) *
+		Matrix4::Scale(hSize * 0.25f) *
 		Matrix4::Rotation(90, Vector3(1.0f, 0.0f, 0.0f));
 
 	textureMatrix = Matrix4::Translation(Vector3(waterCycle, 0.0f, waterCycle)) *
@@ -201,7 +277,7 @@ void Renderer::DrawTower() {
 
 
 	// Set the model and texture matrices to identity(or any transformation you need)
-	modelMatrix = Matrix4::Translation(Vector3(500, 200, 0)) * Matrix4::Scale(Vector3(.5, .5, .5));
+	modelMatrix = Matrix4::Translation(Vector3(5000, 200, 4000)) * Matrix4::Scale(Vector3(.5, .5, .5));
 	// rotate model matrix 90 degrees
 	modelMatrix = modelMatrix * Matrix4::Rotation(90, Vector3(0, 1, 0));
 
@@ -221,14 +297,17 @@ void Renderer::DrawSunIndicator() {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, redTex);
 
+
+	// place indicator at suns position
 	modelMatrix = Matrix4::Translation(Sun->GetPosition()) * Matrix4::Scale(Vector3(100, 100, 100));
+
+	//modelMatrix = Matrix4::Translation(camera->GetPosition() + camera->getDirection() * 100.0f) * Matrix4::Scale(Vector3(10, 10, 10));
 	textureMatrix.ToIdentity();
 
 	UpdateShaderMatrices();
 	sunCube->Draw();
 }
-
-
+	
 void Renderer::lightPositive() {
 	sunTrack->resetTrack();
 }
@@ -239,6 +318,120 @@ void Renderer::lightNegative() {
 
 void Renderer::idkBruh() {
 
-	// face startTarget
 	cameraTrack->faceTarget();
+}
+
+void Renderer::DrawPostProcess()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, processFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[1], 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	BindShader(processShader);
+	modelMatrix.ToIdentity();
+	viewMatrix.ToIdentity();
+	projMatrix.ToIdentity();
+	UpdateShaderMatrices();
+
+	glDisable(GL_DEPTH_TEST);
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(glGetUniformLocation(processShader->GetProgram(), "sceneTex"), 0);
+
+	for (int i = 0; i < POST_PASSES; ++i) {
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[1], 0);
+		glUniform1i(glGetUniformLocation(processShader->GetProgram(), "isVertical"), 0);
+		glBindTexture(GL_TEXTURE_2D, bufferColourTex[0]);
+		ppQuad->Draw();
+		glUniform1i(glGetUniformLocation(processShader->GetProgram(), "isVertical"), 1);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[0], 0);
+		glBindTexture(GL_TEXTURE_2D, bufferColourTex[1]);
+		ppQuad->Draw();
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glEnable(GL_DEPTH_TEST);
+}
+void Renderer::PresentScene()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+	BindShader(sceneShader);
+	modelMatrix.ToIdentity();
+	viewMatrix.ToIdentity();
+	projMatrix.ToIdentity();
+	UpdateShaderMatrices();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, bufferColourTex[0]);
+	glUniform1i(glGetUniformLocation(sceneShader->GetProgram(), "diffuseTex"), 0);
+	ppQuad->Draw();
+}
+
+void Renderer::initSceneGraph() {
+	
+	SceneNode* s = new SceneNode();
+	s->SetMesh(treeMesh);
+	s->SetTexture(treeTex);
+	s->SetTransform(Matrix4::Translation(Vector3(100, 100, 100)) * Matrix4::Scale(Vector3(100, 100, 100)));
+
+	
+	nodeList.push_back(s);
+}
+
+void Renderer::DrawNodes() {
+	// Bind the tower shader
+	BindShader(treeShader);
+
+
+
+	// Activate the texture unit and bind the tower texture
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, towerTex);
+
+	// Set the texture uniform
+	glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "diffuseTex"), 0);
+
+	modelMatrix = Matrix4::Translation(Vector3(10, 10, 10)) * Matrix4::Scale(Vector3(10, 10, 10));
+	textureMatrix.ToIdentity();
+
+	treeMesh->Draw();
+
+
+
+	// Set the model and texture matrices to identity(or any transformation you need)
+	modelMatrix = Matrix4::Translation(Vector3(500, 200, 0)) * Matrix4::Scale(Vector3(.5, .5, .5));
+	// rotate model matrix 90 degrees
+	modelMatrix = modelMatrix * Matrix4::Rotation(90, Vector3(0, 1, 0));
+
+	textureMatrix.ToIdentity();
+
+	// Update the shader matrices
+	UpdateShaderMatrices();
+
+	// Draw the tower mesh
+	tower->Draw();
+	
+	
+	/*BindShader(treeShader);
+	for (const auto& i : nodeList) {
+		DrawNode(i);
+	}*/
+}
+
+void Renderer::DrawNode(SceneNode* n) {
+	if (n->GetMesh()) {
+		Matrix4 model = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale());
+		glUniformMatrix4fv(glGetUniformLocation(treeShader->GetProgram(), "modelMatrix"), 1, false, model.values);
+
+		glUniform4fv(glGetUniformLocation(treeShader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
+
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, n->GetTexture());
+
+		glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "useTexture"), n->GetTexture());
+
+		n->Draw(*this);
+	}
 }

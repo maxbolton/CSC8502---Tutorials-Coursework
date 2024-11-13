@@ -140,8 +140,8 @@ protected:
 public:
 	// Constructor for DirectionalTrack, inherits and initializes Track constructor
 	DirectionalTrack(Vector3* start, Vector3* end, Vector3 startTarget, Vector3 endTarget, T* obj):Track<T>(start, end, obj){
-		startTarget = startTarget;
-		endTarget = endTarget;
+		this->startTarget = startTarget;
+		this->endTarget = endTarget;
 		numTargets = 0;
 		currentTarget = 0;
 	}
@@ -165,39 +165,10 @@ public:
 	}
 
 	void faceTarget() {
-		// Calculate the intended direction from the object to the target
-		Vector3 targetDirection = (startTarget - object->GetPosition());
-		targetDirection.Normalise();
-
-		// Get the object's current direction
-		Vector3 currentDirection = object->getDirection(); // Assuming this method exists
-		currentDirection.Normalise();
-
-		// Define a reference 'up' vector, for example, Y-up
-		Vector3 upVector(0, 1, 0);
-
-		// Calculate the cross product manually
-		Vector3 crossProduct(
-			currentDirection.y * targetDirection.z - currentDirection.z * targetDirection.y,
-			currentDirection.z * targetDirection.x - currentDirection.x * targetDirection.z,
-			currentDirection.x * targetDirection.y - currentDirection.y * targetDirection.x
-		);
-
-		// Calculate the dot product of crossProduct and upVector manually
-		float dotResult = crossProduct.x * upVector.x + crossProduct.y * upVector.y + crossProduct.z * upVector.z;
-
-		// Adjust the target direction based on the winding order
-		if (dotResult < 0) {
-			// Reverse targetDirection if the winding is incorrect
-			targetDirection = -targetDirection;
-		}
-
-		// Set the object's direction
-		object->setDirection(targetDirection);
+	Vector3 directionToTarget = (startTarget - object->GetPosition());
+	directionToTarget.Normalise();
+	object->setDirection(directionToTarget);
 	}
-
-
-
 
 
 };

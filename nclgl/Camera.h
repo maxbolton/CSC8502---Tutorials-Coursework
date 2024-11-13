@@ -18,7 +18,7 @@ class Camera
 
 		~Camera(void) {};
 
-		void UpdateCamera(float dt = 1.0f);
+		void UpdateCamera(float dt = 100.0f);
 
 		Matrix4 BuildViewMatrix();
 
