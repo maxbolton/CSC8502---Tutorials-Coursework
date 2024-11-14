@@ -94,7 +94,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
 	cameraTrack = new DirectionalTrack<Camera>(new Vector3(0.5f, 5.0f, 0.5f), new Vector3(0.5f, 5.0f, 0.5f), Sun->GetPosition(), Sun->GetPosition(), camera);
 
-#pragma region pp stuff
+#pragma region pp stuff/*
 	glGenTextures(1, &bufferDepthTex);
 	glBindTexture(GL_TEXTURE_2D, bufferDepthTex);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
@@ -126,11 +126,11 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
+	*/
+#pragma endregion
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-#pragma endregion
+
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	waterRotate = 0.0f;
@@ -202,6 +202,8 @@ void Renderer::DrawHeightmap() {
 	BindShader(lightShader);
 	SetShaderLight(*Sun);
 
+	glUniform3fv(glGetUniformLocation(lightShader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+
 	glUniform1i(glGetUniformLocation(lightShader->GetProgram(), "diffuseTex"), 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, earthTex);
@@ -257,6 +259,8 @@ void Renderer::DrawTower() {
 	
 	//set light
 	SetShaderLight(*Sun);
+	glUniform3fv(glGetUniformLocation(towerShader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+
 
 
 	// Set the texture uniform
@@ -426,31 +430,7 @@ void Renderer::initSceneGraph() {
 
 }
 
-void Renderer::DrawNodes() {
-	/*//Bind the tree shader
-	BindShader(towerShader);
-
-
-
-	// Set the texture uniform
-	glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "diffuseTex"), 0);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, treeTex);
-
-
-
-
-
-	modelMatrix = Matrix4::Translation(Vector3(4000, 200, 4000)) * Matrix4::Scale(Vector3(100, 100, 100));
-	//modelMatrix.ToIdentity();
-	textureMatrix.ToIdentity();
-	//UpdateShaderMatrices();
-
-	treeMesh->Draw();
-
-	*/
-	
+void Renderer::DrawNodes() {	
 	for (const auto& i : nodeList) {
 		DrawNode(i);
 	}
@@ -468,6 +448,7 @@ void Renderer::DrawNode(SceneNode* n) {
 
 		// Set the texture uniform
 		glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "diffuseTex"), 0);
+
 
 		modelMatrix = n->GetTransform() * Matrix4::Scale(n->GetModelScale());
 		textureMatrix.ToIdentity();

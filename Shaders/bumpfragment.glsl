@@ -3,10 +3,11 @@
 uniform sampler2D diffuseTex;
 uniform sampler2D bumpTex;
 
-uniform vec3 cameraPos;
+uniform vec3 cameraPos; // Camera Pos works
 uniform vec4 lightColour;
 uniform vec3 lightPos;
 uniform float lightRadius;
+
 
 in Vertex{
 	vec4 colour;
@@ -19,7 +20,26 @@ in Vertex{
 
 out vec4 fragColour;
 
+float fogDensity = 0.4f;
+vec3 fogColour = vec3(0.5f, 0.5f, 0.5f);
+
+float camDistance;
+
 void main(void){
+
+	
+	camDistance = length(cameraPos - IN.worldPos);
+	camDistance /= 100.0; // Normalizing distance
+
+	float fogFactor = clamp((100.0 - camDistance) / 100.0, 0.0, 1.0);
+	fogFactor = clamp(fogFactor, 0.35, 1.0);
+
+
+
+
+
+	//fogColour = vec3(cameraPos.x, cameraPos.y, cameraPos.z);
+	
 	vec3 incident = normalize(lightPos - IN.worldPos);
 	vec3 viewDir = normalize(cameraPos - IN.worldPos);
 	vec3 halfDir = normalize(incident + viewDir);
@@ -41,7 +61,12 @@ void main(void){
 	fragColour.rgb = surface * lambert * attenuation;
 	fragColour.rgb += (lightColour.rgb * specFactor) * attenuation * 0.33;
 	fragColour.rgb += surface * 0.1f;
-	fragColour.a = diffuse.a;
+
+	// Apply the fog effect to the final fragment color
+	vec4 foggedColour = mix(vec4(fogColour, 1.0), vec4(fragColour.rgb, 1.0), fogFactor);
+	fragColour.rgb = foggedColour.rgb;
+	fragColour.a = diffuse.a; // Retain the alpha value from the diffuse texture
+
 
 
 }
