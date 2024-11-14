@@ -4,7 +4,6 @@
 #include "../nclgl/HeightMap.h"
 #include "../nclgl/Shader.h"
 #include "../nclgl/SceneNode.h"
-#include "../nclgl/MeshMaterial.h"
 
 
 const int POST_PASSES = 10;
@@ -32,7 +31,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	earthTex = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_COLOR.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 	earthBump = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_NRM.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
-	treeTex = SOIL_load_OGL_texture(TEXTUREDIR"hatka_local_.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	treeTex = SOIL_load_OGL_texture(TEXTUREDIR"T_Pine_02_D.TGA", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
 	cubeMap = SOIL_load_OGL_cubemap(
 		TEXTUREDIR"sh_rt.png", TEXTUREDIR"sh_lf.png",
@@ -64,13 +63,13 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	skyboxShader = new Shader("skyboxVertex.glsl", "skyboxFragment.glsl");
 	lightShader = new Shader("PerPixelVertex.glsl", "PerPixelFragment.glsl");
 	fogShader = new Shader("fogVert.glsl", "fogFrag.glsl");
-	treeShader = new Shader("SceneVertex.glsl", "SceneFragment.glsl");
+	treeShader = new Shader("bumpvertex.glsl", "bumpfragment.glsl");
 
 	sceneShader = new Shader("TexturedVertex.glsl", "TexturedFragment.glsl");
 	processShader = new Shader("TexturedVertex.glsl", "processfrag.glsl");
 
 
-	if (!processShader->LoadSuccess() || !sceneShader->LoadSuccess() || !reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !lightShader->LoadSuccess() || !towerShader->LoadSuccess()) {
+	if (!treeShader->LoadSuccess() || !processShader->LoadSuccess() || !sceneShader->LoadSuccess() || !reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !lightShader->LoadSuccess() || !towerShader->LoadSuccess()) {
 		return;
 	}
 #pragma endregion
@@ -157,7 +156,7 @@ Renderer::~Renderer(void) {
 }
 
 void Renderer::UpdateScene(float dt) {
-	camera->UpdateCamera(dt);
+	camera->UpdateCamera(dt*10);
 	viewMatrix = camera->BuildViewMatrix();
 	waterRotate += dt * 0.2f;
 	waterCycle += dt * 0.125f;
@@ -180,7 +179,7 @@ void Renderer::RenderScene() {
 	DrawWater();
 	DrawTower();
 	DrawSunIndicator();
-	//DrawNodes();
+	DrawNodes();
 
 
 
@@ -297,7 +296,6 @@ void Renderer::DrawSunIndicator() {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, redTex);
 
-
 	// place indicator at suns position
 	modelMatrix = Matrix4::Translation(Sun->GetPosition()) * Matrix4::Scale(Vector3(100, 100, 100));
 
@@ -370,67 +368,110 @@ void Renderer::PresentScene()
 
 void Renderer::initSceneGraph() {
 	
-	SceneNode* s = new SceneNode();
-	s->SetMesh(treeMesh);
-	s->SetTexture(treeTex);
-	s->SetTransform(Matrix4::Translation(Vector3(100, 100, 100)) * Matrix4::Scale(Vector3(100, 100, 100)));
+	SceneNode* t = new SceneNode();
+	t->SetMesh(treeMesh);
+	t->SetTexture(treeTex);
+	t->SetTransform(Matrix4::Translation(Vector3(5000, -250, 4000)));
+	t->SetModelScale(Vector3(.9, .9, .9));
 
+	nodeList.push_back(t);
+
+	SceneNode* t2 = new SceneNode();
+	t2->SetMesh(treeMesh);
+	t2->SetTexture(treeTex);
+	t2->SetTransform(Matrix4::Translation(Vector3(3000, 100, 3000)));
+	t2->SetModelScale(Vector3(2, 2, 2));
+
+	nodeList.push_back(t2);
+
+	SceneNode* t3 = new SceneNode();
+	t3->SetMesh(treeMesh);
+	t3->SetTexture(treeTex);
+	t3->SetTransform(Matrix4::Translation(Vector3(3000, 150, 5000)));
+	t3->SetModelScale(Vector3(1.8, 1.8, 1.8));
+
+	nodeList.push_back(t3);
+
+	SceneNode* t4 = new SceneNode();
+	t4->SetMesh(treeMesh);
+	t4->SetTexture(treeTex);
+	t4->SetTransform(Matrix4::Translation(Vector3(3000, -125, 7000)));
+	t4->SetModelScale(Vector3(2.1, 2.1, 2.1));
 	
-	nodeList.push_back(s);
+	nodeList.push_back(t4);
+
+	SceneNode* t5 = new SceneNode();
+	t5->SetMesh(treeMesh);
+	t5->SetTexture(treeTex);
+	t5->SetTransform(Matrix4::Translation(Vector3(5000, 500, 1500)));
+	t5->SetModelScale(Vector3(1.6, 1.6, 1.6));
+	
+	nodeList.push_back(t5);
+
+	SceneNode* t6 = new SceneNode();
+	t6->SetMesh(treeMesh);
+	t6->SetTexture(treeTex);
+	t6->SetTransform(Matrix4::Translation(Vector3(7250, 200, 1500)));
+	t6->SetModelScale(Vector3(1.75, 1.75, 1.75));
+
+	nodeList.push_back(t6);
+
+	SceneNode* t7 = new SceneNode();
+	t7->SetMesh(treeMesh);
+	t7->SetTexture(treeTex);
+	t7->SetTransform(Matrix4::Translation(Vector3(9000, -200, 1500)));
+	t7->SetModelScale(Vector3(1.75, 1.75, 1.75));
+
+	nodeList.push_back(t7);
+
 }
 
 void Renderer::DrawNodes() {
-	// Bind the tower shader
-	BindShader(treeShader);
+	/*//Bind the tree shader
+	BindShader(towerShader);
 
 
-
-	// Activate the texture unit and bind the tower texture
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, towerTex);
 
 	// Set the texture uniform
-	glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "diffuseTex"), 0);
+	glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "diffuseTex"), 0);
 
-	modelMatrix = Matrix4::Translation(Vector3(10, 10, 10)) * Matrix4::Scale(Vector3(10, 10, 10));
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, treeTex);
+
+
+
+
+
+	modelMatrix = Matrix4::Translation(Vector3(4000, 200, 4000)) * Matrix4::Scale(Vector3(100, 100, 100));
+	//modelMatrix.ToIdentity();
 	textureMatrix.ToIdentity();
+	//UpdateShaderMatrices();
 
 	treeMesh->Draw();
 
-
-
-	// Set the model and texture matrices to identity(or any transformation you need)
-	modelMatrix = Matrix4::Translation(Vector3(500, 200, 0)) * Matrix4::Scale(Vector3(.5, .5, .5));
-	// rotate model matrix 90 degrees
-	modelMatrix = modelMatrix * Matrix4::Rotation(90, Vector3(0, 1, 0));
-
-	textureMatrix.ToIdentity();
-
-	// Update the shader matrices
-	UpdateShaderMatrices();
-
-	// Draw the tower mesh
-	tower->Draw();
+	*/
 	
-	
-	/*BindShader(treeShader);
 	for (const auto& i : nodeList) {
 		DrawNode(i);
-	}*/
+	}
 }
 
 void Renderer::DrawNode(SceneNode* n) {
 	if (n->GetMesh()) {
-		Matrix4 model = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale());
-		glUniformMatrix4fv(glGetUniformLocation(treeShader->GetProgram(), "modelMatrix"), 1, false, model.values);
 
-		glUniform4fv(glGetUniformLocation(treeShader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
+		BindShader(towerShader);
 
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, n->GetTexture());
+		glBindTexture(GL_TEXTURE_2D, treeTex);
 
-		glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "useTexture"), n->GetTexture());
+
+		// Set the texture uniform
+		glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "diffuseTex"), 0);
+
+		modelMatrix = n->GetTransform() * Matrix4::Scale(n->GetModelScale());
+		textureMatrix.ToIdentity();
+		UpdateShaderMatrices();
 
 		n->Draw(*this);
 	}
