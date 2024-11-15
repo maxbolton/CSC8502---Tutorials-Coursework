@@ -3,7 +3,8 @@
 #include "../nclgl/SceneNode.h"
 #include "../nclgl/Light.h"
 #include "Track.h"
-
+#include "../nclgl/MeshAnimation.h"
+#include "../nclgl/MeshMaterial.h"
 
 class Camera;
 class Shader;
@@ -21,9 +22,8 @@ public:
 	virtual void UpdateScene(float dt);
 
 
-	void lightPositive();
-	void lightNegative();
-	void idkBruh();
+	void resetCamera();
+	void toogleLoop();
 
 	Vector3 getLightPos() { return Sun->GetPosition(); }
 
@@ -72,18 +72,7 @@ protected:
 	float waterCycle;
 
 
-	Mesh* ppQuad;
 
-	Shader* sceneShader;
-	Shader* processShader;
-
-	GLuint bufferFBO;
-	GLuint processFBO;
-	GLuint bufferColourTex[2];
-	GLuint bufferDepthTex;
-
-	void PresentScene();
-	void DrawPostProcess();
 
 	SceneNode* root;
 	vector<SceneNode*> nodeList;
@@ -91,6 +80,24 @@ protected:
 	GLuint treeTex;
 
 	float deltaTime;
+
+
+	Mesh* charMesh;
+	Shader* charShader;
+	MeshAnimation* charAnim;
+	MeshMaterial* charMaterial;
+	std::vector<GLuint> charTextures;
+
+	int currentFrame;
+	float frameTime;
+
+	void RenderChar();
+
+	float timePerFrame;
+	int frameCount;
+	float fps;
+
+	float sinWave;
 
 };
 

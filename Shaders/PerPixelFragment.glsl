@@ -6,6 +6,8 @@ uniform vec4 lightColour;
 uniform vec3 lightPos;
 uniform float lightRadius;
 
+uniform float dt;
+
 in Vertex {
     vec4 colour;
     vec2 texCoord;
@@ -15,18 +17,20 @@ in Vertex {
 
 out vec4 fragColour;
 
-float fogDensity = 0.1f;
 vec3 fogColour = vec3(0.5f, 0.5f, 0.5f);
 float camDistance;
 
 void main(void) {
     
+    float fogWave = (sin(dt*0.5) + 1.0) * 0.45; // Normalized to 0-1 range
+
     camDistance = length(cameraPos - IN.worldPos);
     camDistance /= 100.0; // Normalizing distance
 
-	float fogFactor = clamp((100.0 - camDistance) / 100.0, 0.0, 1.0);
+     // Adjust fog factor using fogWave with a wider scaling range (0.1 to 1.0)
+    float fogFactor = clamp((100.0 - camDistance) / 100.0, 0.0, 1.0);
+    fogFactor *= 0.1 + 0.9 * fogWave; // Scaling factor to allow near-clear fog at the lowest wave
 
-    fogFactor = clamp(fogFactor, 0.35, 1.0);
 
 
     /* Debugging: Output camDistance and fogFactor to the color channels

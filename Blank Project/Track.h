@@ -36,7 +36,7 @@ public:
 		object = obj;
 		numPoints = 2;
 		currentPoint = 0;
-		duration = 3.0f;
+		duration = 10.0f;
 		elapsedTime = 0.0f;
 		progress = 0.0f;
 		looping = false;
@@ -116,7 +116,7 @@ public:
 
 		// Interpolate between start and end positions
 		Vector3 newPosition = (getTrackPoints()[getCurrentPoint()]) * (1.0f - progress) + (getTrackPoints()[getCurrentPoint()+1]) * progress;
-		std::cout << "new position: " << newPosition << "\n";
+		//std::cout << "new position: " << newPosition << "\n";
 
 		// Update object position
 		object->SetPosition(newPosition);
@@ -139,11 +139,12 @@ protected:
 
 public:
 	// Constructor for DirectionalTrack, inherits and initializes Track constructor
-	DirectionalTrack(Vector3* start, Vector3* end, Vector3 startTarget, Vector3 endTarget, T* obj):Track<T>(start, end, obj){
-		this->startTarget = startTarget;
-		this->endTarget = endTarget;
+	DirectionalTrack(Vector3* start, Vector3* end, Vector3* startTarget, Vector3* endTarget, T* obj):Track<T>(start, end, obj){
+		this->startTarget = *startTarget;
+		this->endTarget = *endTarget;
 		numTargets = 0;
 		currentTarget = 0;
+		initTargets();
 	}
 
 	~DirectionalTrack() {
@@ -152,23 +153,46 @@ public:
 	}
 
 	void initTargets() {
-		targets.push_back(*startTarget);
-		targets.push_back(*endTarget);
+		targets.push_back(startTarget);
+		targets.push_back(endTarget);
 		numTargets = 2;
 	}
 
 	void addTarget(Vector3 target) {
 		targets.pop_back();
 		targets.push_back(target);
-		targets.push_back(*endTarget);
+		targets.push_back(endTarget);
 		numTargets++;
 	}
 
-	void faceTarget() {
-	Vector3 directionToTarget = (startTarget - object->GetPosition());
-	directionToTarget.Normalise();
-	object->setDirection(directionToTarget);
-	}
+	void faceTarget(float dt) {
+    Vector3 currentDirection = object->getDirection();
+    Vector3 targetDirection = (targets[currentPoint] - object->GetPosition()).Normalised();
+
+    // Update elapsed time
+    elapsedTime += dt;
+
+    // Calculate progress as a percentage (from 0 to 1)
+    progress = elapsedTime / duration;
+    progress = std::min(progress, 1.0f); // Clamp to 1.0 to avoid overshooting
+
+	progress = progress * progress * progress;
+
+    // Interpolate between current and target direction
+    Vector3 newDirection = currentDirection * (1.0f - progress) + targetDirection * progress;
+    newDirection.Normalise(); // Ensure it's a unit vector
+
+    // Set the new direction for the object
+    object->setDirection(newDirection);
+
+    // Reset if complete
+    if (progress >= 1.0f) {
+        elapsedTime = 0.0f;
+        progress = 0.0f;
+        currentPoint = (currentPoint + 1) % numTargets; // Move to the next target if looping
+    }
+}
+
 
 
 };

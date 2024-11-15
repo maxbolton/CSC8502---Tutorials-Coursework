@@ -5,7 +5,7 @@ uniform mat4 viewMatrix;
 uniform mat4 projMatrix;
 uniform mat4 textureMatrix;
 
-uniform float time;
+uniform float dt;
 
 in vec3 position;
 in vec3 normal;
@@ -29,9 +29,9 @@ void main(void){
 
 
 	// Calculate displacement using sin() function
-	float displacement = sin(time)* 0.025;
+	float displacement = sin(dt)* 0.025;
 
-	// Apply displacement to the y-coordinate of the position
+	// Apply displacement to the z-coordinate of the position
 	vec4 displacedPosition = vec4(position.x, position.y , position.z + displacement, 1.0);
 
 	vec4 worldPos = modelMatrix * displacedPosition;

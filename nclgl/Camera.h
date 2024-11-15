@@ -36,6 +36,7 @@ class Camera
 
 
 
+
 	protected:
 		float yaw;
 		float pitch;

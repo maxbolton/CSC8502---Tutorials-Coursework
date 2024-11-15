@@ -5,7 +5,7 @@
 using namespace std;
 
 int main() {
-    Window w("Max Bolton - CSC8502", 1280, 720, false);
+    Window w("Max Bolton - CSC8502", 1920, 1080, false);
     if (!w.HasInitialised()) {
         return -1;
     }
@@ -27,13 +27,10 @@ int main() {
         renderer.SwapBuffers();
 
 		if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_1)) {
-			renderer.lightPositive();
+			renderer.resetCamera();
 		}
         if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_2)) {
-        renderer.lightNegative();
-        }
-        if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_3)) {
-			renderer.idkBruh();
+        renderer.toogleLoop();
         }
     }
     return 0;
