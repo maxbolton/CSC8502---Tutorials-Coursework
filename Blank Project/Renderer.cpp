@@ -186,7 +186,7 @@ void Renderer::RenderScene() {
 	DrawHeightmap();
 	DrawWater();
 	DrawTower();
-	DrawSunIndicator();
+	//DrawSunIndicator();
 	DrawNodes();
 	RenderChar();
 
