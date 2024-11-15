@@ -26,6 +26,8 @@ class SceneNode
 
 		void AddChild(SceneNode* s);
 
+		std::vector<SceneNode*> GetChildren() const { return children; }
+
 		virtual void Update(float dt);
 		virtual void Draw(const OGLRenderer &r);
 

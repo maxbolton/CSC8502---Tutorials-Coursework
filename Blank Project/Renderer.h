@@ -46,7 +46,7 @@ protected:
 	GLuint towerTex;
 	GLuint towerBump;
 
-	Shader* lightShader;
+	Shader* heightMapShader;
 	Shader* reflectShader;
 	Shader* skyboxShader;
 	Shader* towerShader;
@@ -66,6 +66,8 @@ protected:
 	GLuint waterTex;
 	GLuint earthTex;
 	GLuint earthBump;
+	GLuint snowTex;
+	GLuint snowBump;
 
 
 	float waterRotate;
@@ -78,6 +80,7 @@ protected:
 	vector<SceneNode*> nodeList;
 	Mesh* treeMesh;
 	GLuint treeTex;
+	GLuint treeBump;
 
 	float deltaTime;
 

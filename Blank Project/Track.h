@@ -44,8 +44,9 @@ public:
 	}
 
 	~Track() {
-		delete startPos;
-		delete endPos;
+		//delete startPos;
+		//delete endPos;
+		//delete object;
 	}
 
 	void addPoint(Vector3 point) {
@@ -148,8 +149,6 @@ public:
 	}
 
 	~DirectionalTrack() {
-		delete startTarget;
-		delete endTarget;
 	}
 
 	void initTargets() {

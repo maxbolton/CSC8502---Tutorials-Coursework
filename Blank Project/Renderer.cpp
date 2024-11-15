@@ -41,8 +41,11 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	waterTex = SOIL_load_OGL_texture(TEXTUREDIR"water.tga", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 	earthTex = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_COLOR.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 	earthBump = SOIL_load_OGL_texture(TEXTUREDIR"Grass_002_NRM.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	snowTex = SOIL_load_OGL_texture(TEXTUREDIR"Snow_001_COLOR.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	snowBump = SOIL_load_OGL_texture(TEXTUREDIR"Snow_001_NORM.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
 	treeTex = SOIL_load_OGL_texture(TEXTUREDIR"T_Pine_02_D.TGA", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
+	treeBump = SOIL_load_OGL_texture(TEXTUREDIR"T_Pine_02_N.TGA", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
 	cubeMap = SOIL_load_OGL_cubemap(
 		TEXTUREDIR"sh_rt.png", TEXTUREDIR"sh_lf.png",
@@ -58,7 +61,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	SetTextureRepeating(redTex, true);
 
 
-	if (!cubeMap || !waterTex || !earthTex || !earthBump || !towerTex) {
+	if (!cubeMap || !waterTex || !earthTex || !earthBump || !towerTex || !snowBump || !snowTex) {
 		return;
 	}
 
@@ -72,15 +75,15 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 	towerShader = new Shader("bumpvertex.glsl", "bumpfragment.glsl");
 	reflectShader = new Shader("reflectVertex.glsl", "reflectFragment.glsl");
 	skyboxShader = new Shader("skyboxVertex.glsl", "skyboxFragment.glsl");
-	lightShader = new Shader("PerPixelVertex.glsl", "PerPixelFragment.glsl");
+	heightMapShader = new Shader("heightMapVert.glsl", "heightMapFrag.glsl");
 	fogShader = new Shader("fogVert.glsl", "fogFrag.glsl");
-	treeShader = new Shader("bumpvertex.glsl", "bumpfragment.glsl");
+	treeShader = new Shader("treeVert.glsl", "treeFrag.glsl");
 
 
 	charShader = new Shader("SkinningVertex.glsl", "texturedFragment.glsl");
 
 
-	if (!treeShader->LoadSuccess() || !charShader->LoadSuccess() || !reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !lightShader->LoadSuccess() || !towerShader->LoadSuccess()) {
+	if (!treeShader->LoadSuccess() || !charShader->LoadSuccess() || !reflectShader->LoadSuccess() || !skyboxShader->LoadSuccess() || !heightMapShader->LoadSuccess() || !towerShader->LoadSuccess()) {
 		return;
 	}
 #pragma endregion
@@ -93,17 +96,10 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
 	projMatrix = Matrix4::Perspective(1.0f, 15000.0f, (float)width / (float)height, 45.0f);
 
-	Vector3* start = &Sun->GetPosition();
-	Vector3* end = new Vector3(5500, 510, 5500);
-
-
-	sunTrack = new Track<Light>(start, end, Sun);
-	sunTrack->addPoint(Vector3(1000, 1000, 1000));
-
 	camera = new Camera(-45.0f, 0.0f, Vector3(7500.0f, 300.0f, 7500.0f));
 
 
-	cameraTrack = new DirectionalTrack<Camera>(new Vector3(7457, 979, 8135), new Vector3(6772, 1073, 1022), new Vector3(5651, 200, 6750), start, camera);
+	cameraTrack = new DirectionalTrack<Camera>(new Vector3(7457, 979, 8135), new Vector3(6772, 1073, 1022), new Vector3(5651, 200, 6750), &Sun->GetPosition(), camera);
 	cameraTrack->addTarget(Vector3(4500, 400, 4500));
 	cameraTrack->addPoint(Vector3(3846, 979, 7860));
 	cameraTrack->addTarget(Vector3(5651, 200, 6750));
@@ -133,8 +129,12 @@ Renderer::~Renderer(void) {
 	delete quad;
 	delete reflectShader;
 	delete skyboxShader;
-	delete lightShader;
+	delete heightMapShader;
 	delete Sun;
+	//delete cameraTrack;
+	delete towerShader;
+	delete fogShader;
+
 
 }
 
@@ -210,20 +210,28 @@ void Renderer::DrawSkybox() {
 }
 
 void Renderer::DrawHeightmap() {
-	BindShader(lightShader);
+	BindShader(heightMapShader);
 	SetShaderLight(*Sun);
 
-	glUniform3fv(glGetUniformLocation(lightShader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+	glUniform3fv(glGetUniformLocation(heightMapShader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
 
-	glUniform1i(glGetUniformLocation(lightShader->GetProgram(), "diffuseTex"), 0);
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "diffuseTex"), 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, earthTex);
 
-	glUniform1i(glGetUniformLocation(lightShader->GetProgram(), "bumpTex"), 1);
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "bumpTex"), 1);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, earthBump);
 
-	glUniform1f(glGetUniformLocation(lightShader->GetProgram(), "dt"), deltaTime);
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "snowDiff"), 2);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, snowTex);
+
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "snowBump"), 3);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, snowBump);
+
+	glUniform1f(glGetUniformLocation(heightMapShader->GetProgram(), "dt"), deltaTime);
 
 	modelMatrix.ToIdentity();
 	textureMatrix.ToIdentity();
@@ -289,6 +297,15 @@ void Renderer::DrawTower() {
 	glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "bumpTex"), 1);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, towerBump);
+
+
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "snowDiff"), 2);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, snowTex);
+
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "snowBump"), 3);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, snowBump);
 	
 	glUniform1f(glGetUniformLocation(towerShader->GetProgram(), "dt"), deltaTime);
 
@@ -307,9 +324,9 @@ void Renderer::DrawTower() {
 }
 
 void Renderer::DrawSunIndicator() {
-	BindShader(lightShader);
+	BindShader(heightMapShader);
 
-	glUniform1i(glGetUniformLocation(lightShader->GetProgram(), "diffuseTex"), 0);
+	glUniform1i(glGetUniformLocation(heightMapShader->GetProgram(), "diffuseTex"), 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, redTex);
 
@@ -340,7 +357,7 @@ void Renderer::initSceneGraph() {
 	t->SetTransform(Matrix4::Translation(Vector3(5000, -250, 4000)));
 	t->SetModelScale(Vector3(.9, .9, .9));
 
-	nodeList.push_back(t);
+	root = t;
 
 	SceneNode* t2 = new SceneNode();
 	t2->SetMesh(treeMesh);
@@ -348,7 +365,7 @@ void Renderer::initSceneGraph() {
 	t2->SetTransform(Matrix4::Translation(Vector3(3000, 100, 3000)));
 	t2->SetModelScale(Vector3(2, 2, 2));
 
-	nodeList.push_back(t2);
+	root->AddChild(t2);
 
 	SceneNode* t3 = new SceneNode();
 	t3->SetMesh(treeMesh);
@@ -356,7 +373,7 @@ void Renderer::initSceneGraph() {
 	t3->SetTransform(Matrix4::Translation(Vector3(3000, 150, 5000)));
 	t3->SetModelScale(Vector3(1.8, 1.8, 1.8));
 
-	nodeList.push_back(t3);
+	root->AddChild(t3);
 
 	SceneNode* t4 = new SceneNode();
 	t4->SetMesh(treeMesh);
@@ -364,7 +381,7 @@ void Renderer::initSceneGraph() {
 	t4->SetTransform(Matrix4::Translation(Vector3(3000, -125, 7000)));
 	t4->SetModelScale(Vector3(2.1, 2.1, 2.1));
 	
-	nodeList.push_back(t4);
+	root->AddChild(t4);
 
 	SceneNode* t5 = new SceneNode();
 	t5->SetMesh(treeMesh);
@@ -372,7 +389,7 @@ void Renderer::initSceneGraph() {
 	t5->SetTransform(Matrix4::Translation(Vector3(5000, 500, 1500)));
 	t5->SetModelScale(Vector3(1.6, 1.6, 1.6));
 	
-	nodeList.push_back(t5);
+	root->AddChild(t5);
 
 	SceneNode* t6 = new SceneNode();
 	t6->SetMesh(treeMesh);
@@ -380,7 +397,7 @@ void Renderer::initSceneGraph() {
 	t6->SetTransform(Matrix4::Translation(Vector3(7250, 200, 1500)));
 	t6->SetModelScale(Vector3(1.75, 1.75, 1.75));
 
-	nodeList.push_back(t6);
+	root->AddChild(t6);
 
 	SceneNode* t7 = new SceneNode();
 	t7->SetMesh(treeMesh);
@@ -388,12 +405,13 @@ void Renderer::initSceneGraph() {
 	t7->SetTransform(Matrix4::Translation(Vector3(9000, -200, 1500)));
 	t7->SetModelScale(Vector3(1.75, 1.75, 1.75));
 
-	nodeList.push_back(t7);
+	root->AddChild(t7);
 
 }
 
 void Renderer::DrawNodes() {	
-	for (const auto& i : nodeList) {
+	DrawNode(root);
+	for (const auto& i : root->GetChildren()) {
 		DrawNode(i);
 	}
 }
@@ -401,17 +419,21 @@ void Renderer::DrawNodes() {
 void Renderer::DrawNode(SceneNode* n) {
 	if (n->GetMesh()) {
 
-		BindShader(towerShader);
+		BindShader(treeShader);
+		SetShaderLight(*Sun);
 
-
+		// Set the texture uniform
+		glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "diffuseTex"), 0);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, treeTex);
 
+		//set bump texture
+		glUniform1i(glGetUniformLocation(treeShader->GetProgram(), "bumpTex"), 1);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, treeBump);
 
-		// Set the texture uniform
-		glUniform1i(glGetUniformLocation(towerShader->GetProgram(), "diffuseTex"), 0);
 
-		glUniform1f(glGetUniformLocation(towerShader->GetProgram(), "dt"), deltaTime);
+		glUniform1f(glGetUniformLocation(treeShader->GetProgram(), "dt"), deltaTime);
 
 		modelMatrix = n->GetTransform() * Matrix4::Scale(n->GetModelScale());
 		textureMatrix.ToIdentity();
